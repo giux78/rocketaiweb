@@ -27,7 +27,7 @@ const SiteHeader = () => {
       <div className="site-header-left-side">
         <img src={InvokeAILogo} alt="invoke-ai-logo" />
         <h1>
-          invoke <strong>ai</strong>
+          rocket <strong>ai</strong>
         </h1>
       </div>
 
