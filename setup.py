@@ -23,7 +23,7 @@ LONG_DESCRIPTION = ('This version of Stable Diffusion features a slick WebGUI, a
                     ' interactive command-line script that combines text2img and img2img'
                     ' functionality in a "dream bot" style interface, and multiple features'
                     ' and other enhancements.')
-HOMEPAGE = 'https://github.com/invoke-ai/InvokeAI'
+HOMEPAGE = 'https://github.com/giux78/rocketaiweb'
 FRONTEND_FILES = list_files('frontend/dist')
 FRONTEND_FILES.append(('assets',['assets/caution.png']))
 print(FRONTEND_FILES)
