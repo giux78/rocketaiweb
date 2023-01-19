@@ -6,9 +6,7 @@ import createCache from '@emotion/cache';
 import { store } from './app/store';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
-import { persistStore } from 'redux-persist';
-
-export const persistor = persistStore(store);
+import { persistor } from './persistor';
 
 import Loading from './Loading';
 import App from './app/App';
@@ -21,13 +19,18 @@ export const emotionCache = createCache({
 // Custom Styling
 import './styles/index.scss';
 
+// Localization
+import './i18n';
+
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <Provider store={store}>
       <PersistGate loading={<Loading />} persistor={persistor}>
         <CacheProvider value={emotionCache}>
           <ChakraProvider>
-            <App />
+            <React.Suspense fallback={<Loading />}>
+              <App />
+            </React.Suspense>
           </ChakraProvider>
         </CacheProvider>
       </PersistGate>

@@ -1,6 +1,7 @@
 import { AnyAction, MiddlewareAPI, Dispatch } from '@reduxjs/toolkit';
 import { v4 as uuidv4 } from 'uuid';
 import dateFormat from 'dateformat';
+import i18n from 'i18n';
 
 import * as InvokeAI from 'app/invokeai';
 
@@ -16,6 +17,8 @@ import {
   setModelList,
   setIsCancelable,
   addToast,
+  setFoundModels,
+  setSearchFolder,
 } from 'features/system/store/systemSlice';
 
 import {
@@ -39,14 +42,15 @@ import {
   requestSystemConfig,
 } from './actions';
 import { addImageToStagingArea } from 'features/canvas/store/canvasSlice';
-import { tabMap } from 'features/tabs/components/InvokeTabs';
+import { tabMap } from 'features/tabs/tabMap';
+import type { RootState } from 'app/store';
 
 /**
  * Returns an object containing listener callbacks for socketio events.
  * TODO: This file is large, but simple. Should it be split up further?
  */
 const makeSocketIOListeners = (
-  store: MiddlewareAPI<Dispatch<AnyAction>, any>
+  store: MiddlewareAPI<Dispatch<AnyAction>, RootState>
 ) => {
   const { dispatch, getState } = store;
 
@@ -57,7 +61,7 @@ const makeSocketIOListeners = (
     onConnect: () => {
       try {
         dispatch(setIsConnected(true));
-        dispatch(setCurrentStatus('Connected'));
+        dispatch(setCurrentStatus(i18n.t('common:statusConnected')));
         dispatch(requestSystemConfig());
         const gallery: GalleryState = getState().gallery;
 
@@ -82,7 +86,7 @@ const makeSocketIOListeners = (
     onDisconnect: () => {
       try {
         dispatch(setIsConnected(false));
-        dispatch(setCurrentStatus('Disconnected'));
+        dispatch(setCurrentStatus(i18n.t('common:statusDisconnected')));
 
         dispatch(
           addLogEntry({
@@ -100,7 +104,7 @@ const makeSocketIOListeners = (
      */
     onGenerationResult: (data: InvokeAI.ImageResultResponse) => {
       try {
-        const state = getState();
+        const state: RootState = getState();
         const { shouldLoopback, activeTab } = state.options;
         const { boundingBox: _, generationMode, ...rest } = data;
 
@@ -325,7 +329,10 @@ const makeSocketIOListeners = (
       // remove references to image in options
       const { initialImage, maskPath } = getState().options;
 
-      if (initialImage?.url === url || initialImage === url) {
+      if (
+        initialImage === url ||
+        (initialImage as InvokeAI.Image)?.url === url
+      ) {
         dispatch(clearInitialImage());
       }
 
@@ -346,10 +353,61 @@ const makeSocketIOListeners = (
         dispatch(setInfillMethod(data.infill_methods[0]));
       }
     },
+    onFoundModels: (data: InvokeAI.FoundModelResponse) => {
+      const { search_folder, found_models } = data;
+      dispatch(setSearchFolder(search_folder));
+      dispatch(setFoundModels(found_models));
+    },
+    onNewModelAdded: (data: InvokeAI.ModelAddedResponse) => {
+      const { new_model_name, model_list, update } = data;
+      dispatch(setModelList(model_list));
+      dispatch(setIsProcessing(false));
+      dispatch(
+        addLogEntry({
+          timestamp: dateFormat(new Date(), 'isoDateTime'),
+          message: `Model Added: ${new_model_name}`,
+          level: 'info',
+        })
+      );
+      dispatch(
+        addToast({
+          title: !update
+            ? `${i18n.t('modelmanager:modelAdded')}: ${new_model_name}`
+            : `${i18n.t('modelmanager:modelUpdated')}: ${new_model_name}`,
+          status: 'success',
+          duration: 2500,
+          isClosable: true,
+        })
+      );
+    },
+    onModelDeleted: (data: InvokeAI.ModelDeletedResponse) => {
+      const { deleted_model_name, model_list } = data;
+      dispatch(setModelList(model_list));
+      dispatch(setIsProcessing(false));
+      dispatch(
+        addLogEntry({
+          timestamp: dateFormat(new Date(), 'isoDateTime'),
+          message: `${i18n.t(
+            'modelmanager:modelAdded'
+          )}: ${deleted_model_name}`,
+          level: 'info',
+        })
+      );
+      dispatch(
+        addToast({
+          title: `${i18n.t(
+            'modelmanager:modelEntryDeleted'
+          )}: ${deleted_model_name}`,
+          status: 'success',
+          duration: 2500,
+          isClosable: true,
+        })
+      );
+    },
     onModelChanged: (data: InvokeAI.ModelChangeResponse) => {
       const { model_name, model_list } = data;
       dispatch(setModelList(model_list));
-      dispatch(setCurrentStatus('Model Changed'));
+      dispatch(setCurrentStatus(i18n.t('common:statusModelChanged')));
       dispatch(setIsProcessing(false));
       dispatch(setIsCancelable(true));
       dispatch(
@@ -377,7 +435,7 @@ const makeSocketIOListeners = (
     onTempFolderEmptied: () => {
       dispatch(
         addToast({
-          title: 'Temp Folder Emptied',
+          title: i18n.t('toast:tempFoldersEmptied'),
           status: 'success',
           duration: 2500,
           isClosable: true,

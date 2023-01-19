@@ -1,6 +1,7 @@
 import { MdCancel } from 'react-icons/md';
 import { cancelProcessing } from 'app/socketio/actions';
-import { RootState, useAppDispatch, useAppSelector } from 'app/store';
+import { RootState } from 'app/store';
+import { useAppDispatch, useAppSelector } from 'app/storeHooks';
 import IAIIconButton, {
   IAIIconButtonProps,
 } from 'common/components/IAIIconButton';
@@ -8,6 +9,7 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import { createSelector } from '@reduxjs/toolkit';
 import { SystemState } from 'features/system/store/systemSlice';
 import _ from 'lodash';
+import { useTranslation } from 'react-i18next';
 
 const cancelButtonSelector = createSelector(
   (state: RootState) => state.system,
@@ -34,6 +36,8 @@ export default function CancelButton(
     useAppSelector(cancelButtonSelector);
   const handleClickCancel = () => dispatch(cancelProcessing());
 
+  const { t } = useTranslation();
+
   useHotkeys(
     'shift+x',
     () => {
@@ -47,8 +51,8 @@ export default function CancelButton(
   return (
     <IAIIconButton
       icon={<MdCancel />}
-      tooltip="Cancel"
-      aria-label="Cancel"
+      tooltip={t('options:cancel')}
+      aria-label={t('options:cancel')}
       isDisabled={!isConnected || !isProcessing || !isCancelable}
       onClick={handleClickCancel}
       styleClass="cancel-btn"

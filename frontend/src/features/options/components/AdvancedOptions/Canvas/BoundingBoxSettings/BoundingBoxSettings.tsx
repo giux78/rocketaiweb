@@ -1,15 +1,17 @@
 import { Box, Flex } from '@chakra-ui/react';
 import { createSelector } from '@reduxjs/toolkit';
-import { useAppDispatch, useAppSelector } from 'app/store';
+import { useAppDispatch, useAppSelector } from 'app/storeHooks';
 import IAISlider from 'common/components/IAISlider';
 import { canvasSelector } from 'features/canvas/store/canvasSelectors';
 import { setBoundingBoxDimensions } from 'features/canvas/store/canvasSlice';
 import _ from 'lodash';
+import { useTranslation } from 'react-i18next';
 
 const selector = createSelector(
   canvasSelector,
   (canvas) => {
-    const { boundingBoxDimensions, boundingBoxScaleMethod: boundingBoxScale } = canvas;
+    const { boundingBoxDimensions, boundingBoxScaleMethod: boundingBoxScale } =
+      canvas;
     return {
       boundingBoxDimensions,
       boundingBoxScale,
@@ -25,6 +27,8 @@ const selector = createSelector(
 const BoundingBoxSettings = () => {
   const dispatch = useAppDispatch();
   const { boundingBoxDimensions } = useAppSelector(selector);
+
+  const { t } = useTranslation();
 
   const handleChangeWidth = (v: number) => {
     dispatch(
@@ -65,7 +69,7 @@ const BoundingBoxSettings = () => {
   return (
     <Flex direction="column" gap="1rem">
       <IAISlider
-        label={'Width'}
+        label={t('options:width')}
         min={64}
         max={1024}
         step={64}
@@ -78,7 +82,7 @@ const BoundingBoxSettings = () => {
         withReset
       />
       <IAISlider
-        label={'Height'}
+        label={t('options:height')}
         min={64}
         max={1024}
         step={64}
@@ -97,9 +101,10 @@ const BoundingBoxSettings = () => {
 export default BoundingBoxSettings;
 
 export const BoundingBoxSettingsHeader = () => {
+  const { t } = useTranslation();
   return (
     <Box flex="1" textAlign="left">
-      Bounding Box
+      {t('options:boundingBoxHeader')}
     </Box>
   );
 };

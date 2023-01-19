@@ -6,11 +6,11 @@ import {
   Box,
 } from '@chakra-ui/react';
 import { SystemState } from 'features/system/store/systemSlice';
-import { useAppSelector } from 'app/store';
+import { useAppSelector } from 'app/storeHooks';
 import { RootState } from 'app/store';
 import { createSelector } from '@reduxjs/toolkit';
 import { ReactElement } from 'react';
-import { Feature, FEATURES } from 'app/features';
+import { Feature, useFeatureHelpInfo } from 'app/features';
 
 type GuideProps = {
   children: ReactElement;
@@ -24,7 +24,7 @@ const systemSelector = createSelector(
 
 const GuidePopover = ({ children, feature }: GuideProps) => {
   const shouldDisplayGuides = useAppSelector(systemSelector);
-  const { text } = FEATURES[feature];
+  const { text } = useFeatureHelpInfo(feature);
 
   if (!shouldDisplayGuides) return null;
 

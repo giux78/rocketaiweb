@@ -2,7 +2,8 @@ import { Tab, TabPanel, TabPanels, Tabs, Tooltip } from '@chakra-ui/react';
 import _ from 'lodash';
 import React, { ReactElement } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
-import { RootState, useAppDispatch, useAppSelector } from 'app/store';
+import { RootState } from 'app/store';
+import { useAppDispatch, useAppSelector } from 'app/storeHooks';
 import NodesWIP from 'common/components/WorkInProgress/NodesWIP';
 import { PostProcessingWIP } from 'common/components/WorkInProgress/PostProcessingWIP';
 import ImageToImageIcon from 'common/icons/ImageToImageIcon';
@@ -20,8 +21,17 @@ import UnifiedCanvasWorkarea from './UnifiedCanvas/UnifiedCanvasWorkarea';
 import UnifiedCanvasIcon from 'common/icons/UnifiedCanvasIcon';
 import TrainingWIP from 'common/components/WorkInProgress/Training';
 import TrainingIcon from 'common/icons/TrainingIcon';
+import { InvokeTabName } from 'features/tabs/tabMap';
+import i18n from 'i18n';
+import useUpdateTranslations from 'common/hooks/useUpdateTranslations';
 
-export const tabDict = {
+export interface InvokeTabInfo {
+  title: ReactElement;
+  workarea: ReactElement;
+  tooltip: string;
+}
+
+export const tabDict: Record<InvokeTabName, InvokeTabInfo> = {
   txt2img: {
     title: <TextToImageIcon fill={'black'} boxSize={'2.5rem'} />,
     workarea: <TextToImageWorkarea />,
@@ -54,12 +64,14 @@ export const tabDict = {
   },
 };
 
-// Array where index maps to the key of tabDict
-export const tabMap = _.map(tabDict, (tab, key) => key);
-
-// Use tabMap to generate a union type of tab names
-const tabMapTypes = [...tabMap] as const;
-export type InvokeTabName = typeof tabMapTypes[number];
+function updateTabTranslations() {
+  tabDict.txt2img.tooltip = i18n.t('common:text2img');
+  tabDict.img2img.tooltip = i18n.t('common:img2img');
+  tabDict.unifiedCanvas.tooltip = i18n.t('common:unifiedCanvas');
+  tabDict.nodes.tooltip = i18n.t('common:nodes');
+  tabDict.postprocess.tooltip = i18n.t('common:postProcessing');
+  tabDict.training.tooltip = i18n.t('common:training');
+}
 
 export default function InvokeTabs() {
   const activeTab = useAppSelector(
@@ -68,6 +80,8 @@ export default function InvokeTabs() {
   const isLightBoxOpen = useAppSelector(
     (state: RootState) => state.options.isLightBoxOpen
   );
+
+  useUpdateTranslations(updateTabTranslations);
 
   const dispatch = useAppDispatch();
 

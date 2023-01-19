@@ -1,6 +1,7 @@
 import { FormControl, Textarea } from '@chakra-ui/react';
 import { ChangeEvent, KeyboardEvent, useRef } from 'react';
-import { RootState, useAppDispatch, useAppSelector } from 'app/store';
+import { RootState } from 'app/store';
+import { useAppDispatch, useAppSelector } from 'app/storeHooks';
 import { generateImage } from 'app/socketio/actions';
 
 import { OptionsState, setPrompt } from 'features/options/store/optionsSlice';
@@ -9,6 +10,7 @@ import _ from 'lodash';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { activeTabNameSelector } from 'features/options/store/optionsSelectors';
 import { readinessSelector } from 'app/selectors/readinessSelector';
+import { useTranslation } from 'react-i18next';
 
 const promptInputSelector = createSelector(
   [(state: RootState) => state.options, activeTabNameSelector],
@@ -34,6 +36,8 @@ const PromptInput = () => {
   const { isReady } = useAppSelector(readinessSelector);
 
   const promptRef = useRef<HTMLTextAreaElement>(null);
+
+  const { t } = useTranslation();
 
   const handleChangePrompt = (e: ChangeEvent<HTMLTextAreaElement>) => {
     dispatch(setPrompt(e.target.value));
@@ -62,7 +66,7 @@ const PromptInput = () => {
         <Textarea
           id="prompt"
           name="prompt"
-          placeholder="Type prompt here. [negative tokens], (upweight)++, (downweight)--, swap and blend are available (see docs)"
+          placeholder={t('options:promptPlaceholder')}
           size={'lg'}
           value={prompt}
           onChange={handleChangePrompt}

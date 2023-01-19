@@ -2,26 +2,36 @@
 Base class for ldm.invoke.generator.*
 including img2img, txt2img, and inpaint
 '''
-import torch
-import numpy as  np
-import random
+from __future__ import annotations
+
 import os
 import os.path as osp
+import random
 import traceback
-from tqdm import tqdm, trange
+from contextlib import nullcontext
+
+import cv2
+import numpy as np
+import torch
 from PIL import Image, ImageFilter, ImageChops
-import cv2 as cv
-from einops import rearrange, repeat
+from diffusers import DiffusionPipeline
+from einops import rearrange
 from pytorch_lightning import seed_everything
-from ldm.invoke.devices import choose_autocast
-from ldm.models.diffusion.cross_attention_map_saving import AttentionMapSaver
+from tqdm import trange
+
+from ldm.models.diffusion.ddpm import DiffusionWrapper
 from ldm.util import rand_perlin_2d
 
 downsampling = 8
 CAUTION_IMG = 'assets/caution.png'
 
-class Generator():
-    def __init__(self, model, precision):
+class Generator:
+    downsampling_factor: int
+    latent_channels: int
+    precision: str
+    model: DiffusionWrapper | DiffusionPipeline
+
+    def __init__(self, model: DiffusionWrapper | DiffusionPipeline, precision: str):
         self.model = model
         self.precision = precision
         self.seed = None
@@ -52,9 +62,8 @@ class Generator():
     def generate(self,prompt,init_image,width,height,sampler, iterations=1,seed=None,
                  image_callback=None, step_callback=None, threshold=0.0, perlin=0.0,
                  safety_checker:dict=None,
-                 attention_maps_callback = None,
                  **kwargs):
-        scope = choose_autocast(self.precision)
+        scope = nullcontext
         self.safety_checker = safety_checker
         attention_maps_images = []
         attention_maps_callback = lambda saver: attention_maps_images.append(saver.get_stacked_maps_image())
@@ -165,7 +174,7 @@ class Generator():
         # Blur the mask out (into init image) by specified amount
         if mask_blur_radius > 0:
             nm = np.asarray(pil_init_mask, dtype=np.uint8)
-            nmd = cv.erode(nm, kernel=np.ones((3,3), dtype=np.uint8), iterations=int(mask_blur_radius / 2))
+            nmd = cv2.erode(nm, kernel=np.ones((3,3), dtype=np.uint8), iterations=int(mask_blur_radius / 2))
             pmd = Image.fromarray(nmd, mode='L')
             blurred_init_mask = pmd.filter(ImageFilter.BoxBlur(mask_blur_radius))
         else:
@@ -176,8 +185,6 @@ class Generator():
         # Paste original on color-corrected generation (using blurred mask)
         matched_result.paste(init_image, (0,0), mask = multiplied_blurred_init_mask)
         return matched_result
-
-
 
     def sample_to_lowres_estimated_image(self,samples):
         # origingally adapted from code by @erucipe and @keturn here:
@@ -228,7 +235,8 @@ class Generator():
 
     def get_perlin_noise(self,width,height):
         fixdevice = 'cpu' if (self.model.device.type == 'mps') else self.model.device
-        return torch.stack([rand_perlin_2d((height, width), (8, 8), device = self.model.device).to(fixdevice) for _ in range(self.latent_channels)], dim=0).to(self.model.device)
+        noise = torch.stack([rand_perlin_2d((height, width), (8, 8), device = self.model.device).to(fixdevice) for _ in range(self.latent_channels)], dim=0).to(self.model.device)
+        return noise
 
     def new_seed(self):
         self.seed = random.randrange(0, np.iinfo(np.uint32).max)
@@ -306,6 +314,7 @@ class Generator():
         return blurry
 
     def get_caution_img(self):
+        path = None
         if self.caution_img:
             return self.caution_img
         # Find the caution image. If we are installed in the package directory it will
@@ -331,4 +340,7 @@ class Generator():
             os.makedirs(dirname, exist_ok=True)
         image.save(filepath,'PNG')
 
+
+    def torch_dtype(self)->torch.dtype:
+        return torch.float16 if self.precision == 'float16' else torch.float32
 

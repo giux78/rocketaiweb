@@ -1,7 +1,7 @@
 import { createSelector } from '@reduxjs/toolkit';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { FaRedo } from 'react-icons/fa';
-import { useAppDispatch, useAppSelector } from 'app/store';
+import { useAppDispatch, useAppSelector } from 'app/storeHooks';
 import IAIIconButton from 'common/components/IAIIconButton';
 import { activeTabNameSelector } from 'features/options/store/optionsSelectors';
 import { canvasSelector } from 'features/canvas/store/canvasSelectors';
@@ -9,6 +9,7 @@ import { canvasSelector } from 'features/canvas/store/canvasSelectors';
 import _ from 'lodash';
 import { redo } from 'features/canvas/store/canvasSlice';
 import { systemSelector } from 'features/system/store/systemSelectors';
+import { useTranslation } from 'react-i18next';
 
 const canvasRedoSelector = createSelector(
   [canvasSelector, activeTabNameSelector, systemSelector],
@@ -31,6 +32,8 @@ export default function IAICanvasRedoButton() {
   const dispatch = useAppDispatch();
   const { canRedo, activeTabName } = useAppSelector(canvasRedoSelector);
 
+  const { t } = useTranslation();
+
   const handleRedo = () => {
     dispatch(redo());
   };
@@ -49,8 +52,8 @@ export default function IAICanvasRedoButton() {
 
   return (
     <IAIIconButton
-      aria-label="Redo (Ctrl+Shift+Z)"
-      tooltip="Redo (Ctrl+Shift+Z)"
+      aria-label={`${t('unifiedcanvas:redo')} (Ctrl+Shift+Z)`}
+      tooltip={`${t('unifiedcanvas:redo')} (Ctrl+Shift+Z)`}
       icon={<FaRedo />}
       onClick={handleRedo}
       isDisabled={!canRedo}

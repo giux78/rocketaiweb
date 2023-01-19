@@ -1,7 +1,9 @@
-import { RootState, useAppDispatch, useAppSelector } from 'app/store';
+import { RootState } from 'app/store';
+import { useAppDispatch, useAppSelector } from 'app/storeHooks';
 import IAICheckbox from 'common/components/IAICheckbox';
 import { setIsMaskEnabled } from 'features/canvas/store/canvasSlice';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 export default function UnifiedCanvasEnableMask() {
   const isMaskEnabled = useAppSelector(
@@ -9,13 +11,14 @@ export default function UnifiedCanvasEnableMask() {
   );
 
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
 
   const handleToggleEnableMask = () =>
     dispatch(setIsMaskEnabled(!isMaskEnabled));
 
   return (
     <IAICheckbox
-      label="Enable Mask (H)"
+      label={`${t('unifiedcanvas:enableMask')} (H)`}
       isChecked={isMaskEnabled}
       onChange={handleToggleEnableMask}
     />

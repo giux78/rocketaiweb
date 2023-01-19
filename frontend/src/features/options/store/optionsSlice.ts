@@ -4,7 +4,7 @@ import * as InvokeAI from 'app/invokeai';
 import promptToString from 'common/util/promptToString';
 import { seedWeightsToString } from 'common/util/seedWeightPairs';
 import { FACETOOL_TYPES } from 'app/constants';
-import { InvokeTabName, tabMap } from 'features/tabs/components/InvokeTabs';
+import { InvokeTabName, tabMap } from 'features/tabs/tabMap';
 
 export type UpscalingLevel = 2 | 4;
 
@@ -56,6 +56,8 @@ export interface OptionsState {
   variationAmount: number;
   width: number;
   shouldUseCanvasBetaLayout: boolean;
+  shouldShowExistingModelsInSearch: boolean;
+  addNewModelUIOption: 'ckpt' | 'diffusers' | null;
 }
 
 const initialOptionsState: OptionsState = {
@@ -103,6 +105,8 @@ const initialOptionsState: OptionsState = {
   variationAmount: 0.1,
   width: 512,
   shouldUseCanvasBetaLayout: false,
+  shouldShowExistingModelsInSearch: false,
+  addNewModelUIOption: null,
 };
 
 const initialState: OptionsState = initialOptionsState;
@@ -236,8 +240,11 @@ export const optionsSlice = createSlice({
       if (sampler) state.sampler = sampler;
       if (steps) state.steps = steps;
       if (cfg_scale) state.cfgScale = cfg_scale;
-      if (threshold) state.threshold = threshold;
-      if (typeof threshold === 'undefined') state.threshold = 0;
+      if (typeof threshold === 'undefined') {
+        state.threshold = 0;
+      } else {
+        state.threshold = threshold;
+      }
       if (perlin) state.perlin = perlin;
       if (typeof perlin === 'undefined') state.perlin = 0;
       if (typeof seamless === 'boolean') state.seamless = seamless;
@@ -401,6 +408,18 @@ export const optionsSlice = createSlice({
     setShouldUseCanvasBetaLayout: (state, action: PayloadAction<boolean>) => {
       state.shouldUseCanvasBetaLayout = action.payload;
     },
+    setShouldShowExistingModelsInSearch: (
+      state,
+      action: PayloadAction<boolean>
+    ) => {
+      state.shouldShowExistingModelsInSearch = action.payload;
+    },
+    setAddNewModelUIOption: (
+      state,
+      action: PayloadAction<'ckpt' | 'diffusers' | null>
+    ) => {
+      state.addNewModelUIOption = action.payload;
+    },
   },
 });
 
@@ -457,6 +476,8 @@ export const {
   setVariationAmount,
   setWidth,
   setShouldUseCanvasBetaLayout,
+  setShouldShowExistingModelsInSearch,
+  setAddNewModelUIOption,
 } = optionsSlice.actions;
 
 export default optionsSlice.reducer;

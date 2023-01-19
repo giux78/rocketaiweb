@@ -1,10 +1,12 @@
-import { RootState, useAppDispatch, useAppSelector } from 'app/store';
+import { RootState } from 'app/store';
+import { useAppDispatch, useAppSelector } from 'app/storeHooks';
 import IAIIconButton from 'common/components/IAIIconButton';
 import { isStagingSelector } from 'features/canvas/store/canvasSelectors';
 import { mergeAndUploadCanvas } from 'features/canvas/store/thunks/mergeAndUploadCanvas';
 import { getCanvasBaseLayer } from 'features/canvas/util/konvaInstanceProvider';
 import React from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { useTranslation } from 'react-i18next';
 import { FaSave } from 'react-icons/fa';
 
 export default function UnifiedCanvasSaveToGallery() {
@@ -18,6 +20,7 @@ export default function UnifiedCanvasSaveToGallery() {
   );
 
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
 
   useHotkeys(
     ['shift+s'],
@@ -42,8 +45,8 @@ export default function UnifiedCanvasSaveToGallery() {
   };
   return (
     <IAIIconButton
-      aria-label="Save to Gallery (Shift+S)"
-      tooltip="Save to Gallery (Shift+S)"
+      aria-label={`${t('unifiedcanvas:saveToGallery')} (Shift+S)`}
+      tooltip={`${t('unifiedcanvas:saveToGallery')} (Shift+S)`}
       icon={<FaSave />}
       onClick={handleSaveToGallery}
       isDisabled={isStaging}

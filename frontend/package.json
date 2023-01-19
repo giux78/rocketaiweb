@@ -8,6 +8,10 @@
     "build": "tsc && vite build",
     "build-dev": "tsc && vite build -m development",
     "preview": "vite preview",
+    "madge": "madge --circular src/main.tsx",
+    "lint": "eslint src/",
+    "prettier": "prettier *.{json,cjs,ts,html} src/**/*.{ts,tsx}",
+    "fmt": "npm run prettier -- --write",
     "postinstall": "patch-package"
   },
   "dependencies": {
@@ -23,7 +27,11 @@
     "@types/uuid": "^8.3.4",
     "add": "^2.0.6",
     "dateformat": "^5.0.3",
+    "formik": "^2.2.9",
     "framer-motion": "^7.2.1",
+    "i18next": "^22.4.5",
+    "i18next-browser-languagedetector": "^7.0.1",
+    "i18next-http-backend": "^2.1.0",
     "konva": "^8.3.13",
     "lodash": "^4.17.21",
     "re-resizable": "^6.9.9",
@@ -32,6 +40,7 @@
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.2.2",
     "react-hotkeys-hook": "4.0.2",
+    "react-i18next": "^12.1.1",
     "react-icons": "^4.4.0",
     "react-konva": "^18.2.3",
     "react-konva-utils": "^0.3.0",
@@ -58,8 +67,10 @@
     "eslint": "^8.23.0",
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-react-hooks": "^4.6.0",
+    "madge": "^5.0.1",
     "patch-package": "^6.5.0",
     "postinstall-postinstall": "^2.1.0",
+    "prettier": "^2.8.1",
     "sass": "^1.55.0",
     "terser": "^5.16.1",
     "tsc-watch": "^5.0.3",
@@ -67,5 +78,15 @@
     "vite": "^3.0.7",
     "vite-plugin-eslint": "^1.8.1",
     "vite-tsconfig-paths": "^3.5.2"
+  },
+  "madge": {
+    "detectiveOptions": {
+      "ts": {
+        "skipTypeImports": true
+      },
+      "tsx": {
+        "skipTypeImports": true
+      }
+    }
   }
 }

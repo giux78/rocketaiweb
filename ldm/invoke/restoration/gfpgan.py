@@ -13,19 +13,19 @@ class GFPGAN():
             self,
             gfpgan_model_path='models/gfpgan/GFPGANv1.4.pth'
     ) -> None:
-    
+
         if not os.path.isabs(gfpgan_model_path):
             gfpgan_model_path=os.path.abspath(os.path.join(Globals.root,gfpgan_model_path))
         self.model_path = gfpgan_model_path
         self.gfpgan_model_exists = os.path.isfile(self.model_path)
-        
+
         if not self.gfpgan_model_exists:
             print('## NOT FOUND: GFPGAN model not found at ' + self.model_path)
             return None
-    
+
     def model_exists(self):
         return os.path.isfile(self.model_path)
-    
+
     def process(self, image, strength: float, seed: str = None):
         if seed is not None:
             print(f'>> GFPGAN - Restoring Faces for image seed:{seed}')
@@ -33,6 +33,8 @@ class GFPGAN():
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=DeprecationWarning)
             warnings.filterwarnings('ignore', category=UserWarning)
+            cwd = os.getcwd()
+            os.chdir(os.path.join(Globals.root,'models'))
             try:
                 from gfpgan import GFPGANer
                 self.gfpgan = GFPGANer(
@@ -46,6 +48,7 @@ class GFPGAN():
                 import traceback
                 print('>> Error loading GFPGAN:', file=sys.stderr)
                 print(traceback.format_exc(), file=sys.stderr)
+            os.chdir(cwd)
 
         if self.gfpgan is None:
             print(

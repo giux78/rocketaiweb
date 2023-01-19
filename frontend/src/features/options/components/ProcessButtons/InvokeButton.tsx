@@ -2,12 +2,13 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import { FaPlay } from 'react-icons/fa';
 import { readinessSelector } from 'app/selectors/readinessSelector';
 import { generateImage } from 'app/socketio/actions';
-import { useAppDispatch, useAppSelector } from 'app/store';
+import { useAppDispatch, useAppSelector } from 'app/storeHooks';
 import IAIButton, { IAIButtonProps } from 'common/components/IAIButton';
 import IAIIconButton, {
   IAIIconButtonProps,
 } from 'common/components/IAIIconButton';
 import { activeTabNameSelector } from 'features/options/store/optionsSelectors';
+import { useTranslation } from 'react-i18next';
 
 interface InvokeButton
   extends Omit<IAIButtonProps | IAIIconButtonProps, 'aria-label'> {
@@ -23,6 +24,8 @@ export default function InvokeButton(props: InvokeButton) {
   const handleClickGenerate = () => {
     dispatch(generateImage(activeTabName));
   };
+
+  const { t } = useTranslation();
 
   useHotkeys(
     ['ctrl+enter', 'meta+enter'],
@@ -41,19 +44,19 @@ export default function InvokeButton(props: InvokeButton) {
     <div style={{ flexGrow: 4 }}>
       {iconButton ? (
         <IAIIconButton
-          aria-label="Invoke"
+          aria-label={t('options:invoke')}
           type="submit"
           icon={<FaPlay />}
           isDisabled={!isReady}
           onClick={handleClickGenerate}
           className="invoke-btn"
-          tooltip="Invoke"
+          tooltip={t('options:invoke')}
           tooltipProps={{ placement: 'bottom' }}
           {...rest}
         />
       ) : (
         <IAIButton
-          aria-label="Invoke"
+          aria-label={t('options:invoke')}
           type="submit"
           isDisabled={!isReady}
           onClick={handleClickGenerate}

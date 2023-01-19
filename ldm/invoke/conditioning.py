@@ -16,9 +16,15 @@ from .prompt_parser import PromptParser, Blend, FlattenedPrompt, \
 from ..models.diffusion import cross_attention_control
 from ..models.diffusion.shared_invokeai_diffusion import InvokeAIDiffuserComponent
 from ..modules.encoders.modules import WeightedFrozenCLIPEmbedder
+from ..modules.prompt_to_embeddings_converter import WeightedPromptFragmentsToEmbeddingsConverter
 
 
 def get_uc_and_c_and_ec(prompt_string, model, log_tokens=False, skip_normalize_legacy_blend=False):
+
+    # lazy-load any deferred textual inversions.
+    # this might take a couple of seconds the first time a textual inversion is used.
+    model.textual_inversion_manager.create_deferred_token_ids_for_any_trigger_terms(prompt_string)
+
     prompt, negative_prompt = get_prompt_structure(prompt_string,
                                                    skip_normalize_legacy_blend=skip_normalize_legacy_blend)
     conditioning = _get_conditioning_for_prompt(prompt, negative_prompt, model, log_tokens)
@@ -36,13 +42,16 @@ Union[FlattenedPrompt, Blend], FlattenedPrompt):
     return prompt, negative_prompt
 
 
-def get_tokens_for_prompt(model, parsed_prompt: FlattenedPrompt) -> [str]:
+def get_tokens_for_prompt(model, parsed_prompt: FlattenedPrompt, truncate_if_too_long=True) -> [str]:
     text_fragments = [x.text if type(x) is Fragment else
                       (" ".join([f.text for f in x.original]) if type(x) is CrossAttentionControlSubstitute else
                        str(x))
                       for x in parsed_prompt.children]
     text = " ".join(text_fragments)
     tokens = model.cond_stage_model.tokenizer.tokenize(text)
+    if truncate_if_too_long:
+        max_tokens_length = model.cond_stage_model.max_length - 2 # typically 75
+        tokens = tokens[0:max_tokens_length]
     return tokens
 
 
@@ -116,8 +125,12 @@ def _get_conditioning_for_prompt(parsed_prompt: Union[Blend, FlattenedPrompt], p
                 ">> Hybrid conditioning cannot currently be combined with cross attention control. Cross attention control will be ignored.")
             cac_args = None
 
-    eos_token_index = 1
-    if type(parsed_prompt) is not Blend:
+    if type(parsed_prompt) is Blend:
+        blend: Blend = parsed_prompt
+        all_token_sequences = [get_tokens_for_prompt(model, p) for p in blend.prompts]
+        longest_token_sequence = max(all_token_sequences, key=lambda t: len(t))
+        eos_token_index = len(longest_token_sequence)+1
+    else:
         tokens = get_tokens_for_prompt(model, parsed_prompt)
         eos_token_index = len(tokens)+1
     return (
@@ -209,7 +222,7 @@ def _get_conditioning_for_blend(model, blend: Blend, log_tokens: bool = False):
                                                                   log_display_label=f"(blend part {i + 1}, weight={blend.weights[i]})")
         embeddings_to_blend = this_embedding if embeddings_to_blend is None else torch.cat(
             (embeddings_to_blend, this_embedding))
-    conditioning = WeightedFrozenCLIPEmbedder.apply_embedding_weights(embeddings_to_blend.unsqueeze(0),
+    conditioning = WeightedPromptFragmentsToEmbeddingsConverter.apply_embedding_weights(embeddings_to_blend.unsqueeze(0),
                                                                       blend.weights,
                                                                       normalize=blend.normalize_weights)
     return conditioning
@@ -231,7 +244,7 @@ def _get_embeddings_and_tokens_for_prompt(model, flattened_prompt: FlattenedProm
 
 def _get_tokens_length(model, fragments: list[Fragment]):
     fragment_texts = [x.text for x in fragments]
-    tokens = model.cond_stage_model.get_tokens(fragment_texts, include_start_and_end_markers=False)
+    tokens = model.cond_stage_model.get_token_ids(fragment_texts, include_start_and_end_markers=False)
     return sum([len(x) for x in tokens])
 
 

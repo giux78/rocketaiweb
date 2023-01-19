@@ -1,13 +1,14 @@
 import { createSelector } from '@reduxjs/toolkit';
 import _ from 'lodash';
 import React from 'react';
-import { RootState, useAppDispatch, useAppSelector } from 'app/store';
+import type { RootState } from 'app/store';
+import { useAppDispatch, useAppSelector } from 'app/storeHooks';
 import IAINumberInput from 'common/components/IAINumberInput';
 import {
   OptionsState,
   setIterations,
 } from 'features/options/store/optionsSlice';
-import { inputWidth } from './MainOptions';
+import { useTranslation } from 'react-i18next';
 
 const mainIterationsSelector = createSelector(
   [(state: RootState) => state.options],
@@ -28,18 +29,19 @@ const mainIterationsSelector = createSelector(
 export default function MainIterations() {
   const dispatch = useAppDispatch();
   const { iterations } = useAppSelector(mainIterationsSelector);
+  const { t } = useTranslation();
 
   const handleChangeIterations = (v: number) => dispatch(setIterations(v));
 
   return (
     <IAINumberInput
-      label="Images"
+      label={t('options:images')}
       step={1}
       min={1}
       max={9999}
       onChange={handleChangeIterations}
       value={iterations}
-      width={inputWidth}
+      width="auto"
       labelFontSize={0.5}
       styleClass="main-option-block"
       textAlign="center"

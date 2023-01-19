@@ -1,12 +1,6 @@
-import { Link } from '@chakra-ui/react';
+import { Flex, Link, Text } from '@chakra-ui/react';
 
-import {
-  FaGithub,
-  FaDiscord,
-  FaBug,
-  FaKeyboard,
-  FaWrench,
-} from 'react-icons/fa';
+import { FaGithub, FaDiscord, FaBug, FaKeyboard, FaCube } from 'react-icons/fa';
 
 import InvokeAILogo from 'assets/images/logo.png';
 import IAIIconButton from 'common/components/IAIIconButton';
@@ -17,18 +11,40 @@ import SettingsModal from './SettingsModal/SettingsModal';
 import StatusIndicator from './StatusIndicator';
 import ThemeChanger from './ThemeChanger';
 import ModelSelect from './ModelSelect';
+import ModelManagerModal from './ModelManager/ModelManagerModal';
+
+import LanguagePicker from './LanguagePicker';
+
+import { useTranslation } from 'react-i18next';
+import { MdSettings } from 'react-icons/md';
+import { useAppSelector } from 'app/storeHooks';
+import type { RootState } from 'app/store';
 
 /**
  * Header, includes color mode toggle, settings button, status message.
  */
 const SiteHeader = () => {
+  const { t } = useTranslation();
+  const appVersion = useAppSelector(
+    (state: RootState) => state.system.app_version
+  );
+
   return (
     <div className="site-header">
       <div className="site-header-left-side">
         <img src={InvokeAILogo} alt="invoke-ai-logo" />
-        <h1>
-          rocket <strong>ai</strong>
-        </h1>
+        <Flex alignItems="center" columnGap="0.6rem">
+          <Text fontSize="1.4rem">
+            rocket <strong>ai</strong> fork by invokeai
+          </Text> 
+          <Text
+            fontWeight="bold"
+            color="var(--text-color-secondary)"
+            marginTop="0.2rem"
+          >
+            {appVersion}
+          </Text>
+        </Flex>
       </div>
 
       <div className="site-header-right-side">
@@ -36,10 +52,22 @@ const SiteHeader = () => {
 
         <ModelSelect />
 
+        <ModelManagerModal>
+          <IAIIconButton
+            aria-label={t('modelmanager:modelManager')}
+            tooltip={t('modelmanager:modelManager')}
+            size={'sm'}
+            variant="link"
+            data-variant="link"
+            fontSize={20}
+            icon={<FaCube />}
+          />
+        </ModelManagerModal>
+
         <HotkeysModal>
           <IAIIconButton
-            aria-label="Hotkeys"
-            tooltip="Hotkeys"
+            aria-label={t('common:hotkeysLabel')}
+            tooltip={t('common:hotkeysLabel')}
             size={'sm'}
             variant="link"
             data-variant="link"
@@ -50,9 +78,11 @@ const SiteHeader = () => {
 
         <ThemeChanger />
 
+        <LanguagePicker />
+
         <IAIIconButton
-          aria-label="Report Bug"
-          tooltip="Report Bug"
+          aria-label={t('common:reportBugLabel')}
+          tooltip={t('common:reportBugLabel')}
           variant="link"
           data-variant="link"
           fontSize={20}
@@ -65,8 +95,8 @@ const SiteHeader = () => {
         />
 
         <IAIIconButton
-          aria-label="Link to Github Repo"
-          tooltip="Github"
+          aria-label={t('common:githubLabel')}
+          tooltip={t('common:githubLabel')}
           variant="link"
           data-variant="link"
           fontSize={20}
@@ -79,8 +109,8 @@ const SiteHeader = () => {
         />
 
         <IAIIconButton
-          aria-label="Link to Discord Server"
-          tooltip="Discord"
+          aria-label={t('common:discordLabel')}
+          tooltip={t('common:discordLabel')}
           variant="link"
           data-variant="link"
           fontSize={20}
@@ -94,13 +124,13 @@ const SiteHeader = () => {
 
         <SettingsModal>
           <IAIIconButton
-            aria-label="Settings"
-            tooltip="Settings"
+            aria-label={t('common:settingsLabel')}
+            tooltip={t('common:settingsLabel')}
             variant="link"
             data-variant="link"
-            fontSize={20}
+            fontSize={22}
             size={'sm'}
-            icon={<FaWrench />}
+            icon={<MdSettings />}
           />
         </SettingsModal>
       </div>

@@ -1,6 +1,6 @@
 import { createAction } from '@reduxjs/toolkit';
 import { GalleryCategory } from 'features/gallery/store/gallerySlice';
-import { InvokeTabName } from 'features/tabs/components/InvokeTabs';
+import { InvokeTabName } from 'features/tabs/tabMap';
 import * as InvokeAI from 'app/invokeai';
 
 /**
@@ -29,6 +29,14 @@ export const cancelProcessing = createAction<undefined>(
 export const requestSystemConfig = createAction<undefined>(
   'socketio/requestSystemConfig'
 );
+
+export const searchForModels = createAction<string>('socketio/searchForModels');
+
+export const addNewModel = createAction<
+  InvokeAI.InvokeModelConfigProps | InvokeAI.InvokeDiffusersModelConfigProps
+>('socketio/addNewModel');
+
+export const deleteModel = createAction<string>('socketio/deleteModel');
 
 export const requestModelChange = createAction<string>(
   'socketio/requestModelChange'

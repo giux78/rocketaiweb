@@ -121,8 +121,8 @@ command-line completion.
             dir
             ```
 
-    !!! warning "Do not try to run conda on directly on the subdirectory environments file. This won't work. Instead, copy or link it to the top-level directory as shown."    
-    
+    !!! warning "Do not try to run conda on directly on the subdirectory environments file. This won't work. Instead, copy or link it to the top-level directory as shown."
+
 6.  Create the conda environment:
 
     ```bash
@@ -152,7 +152,7 @@ command-line completion.
         If you have already downloaded the weights file(s) for another Stable
         Diffusion distribution, you may skip this step (by selecting "skip" when
         prompted) and configure InvokeAI to use the previously-downloaded files. The
-        process for this is described in [here](INSTALLING_MODELS.md).
+        process for this is described in [here](050_INSTALLING_MODELS.md).
 
     ```bash
     python scripts/configure_invokeai.py

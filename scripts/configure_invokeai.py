@@ -8,30 +8,42 @@
 #
 print('Loading Python libraries...\n')
 import argparse
-import sys
 import os
+import io
 import re
-import warnings
 import shutil
-from urllib import request
-from tqdm import tqdm
-from omegaconf import OmegaConf
-from huggingface_hub import HfFolder, hf_hub_url
+import sys
+import traceback
+import warnings
 from pathlib import Path
-from typing import Union
+from typing import Dict, Union
+from urllib import request
+
+import requests
+import transformers
+from diffusers import StableDiffusionPipeline, AutoencoderKL
+from ldm.invoke.generator.diffusers_pipeline import StableDiffusionGeneratorPipeline
+from ldm.invoke.devices import choose_precision, choose_torch_device
 from getpass_asterisk import getpass_asterisk
+from huggingface_hub import HfFolder, hf_hub_url, login as hf_hub_login, whoami as hf_whoami
+from huggingface_hub.utils._errors import RevisionNotFoundError
+from omegaconf import OmegaConf
+from omegaconf.dictconfig import DictConfig
+from tqdm import tqdm
 from transformers import CLIPTokenizer, CLIPTextModel
-from ldm.invoke.globals import Globals
+
+from ldm.invoke.globals import Globals, global_cache_dir
 from ldm.invoke.readline import generic_completer
 
-import traceback
-import requests
-import clip
-import transformers
-import warnings
 warnings.filterwarnings('ignore')
 import torch
 transformers.logging.set_verbosity_error()
+
+try:
+    from ldm.invoke.model_manager import ModelManager
+except ImportError:
+    sys.path.append('.')
+    from ldm.invoke.model_manager import ModelManager
 
 #--------------------------globals-----------------------
 Model_dir = 'models'
@@ -71,7 +83,7 @@ def postscript(errors: None):
 You're all set!
 
 If you installed using one of the automated installation scripts,
-execute 'invoke.sh' (Linux/macOS) or 'invoke.bat' (Windows) to 
+execute 'invoke.sh' (Linux/macOS) or 'invoke.bat' (Windows) to
 start InvokeAI.
 
 If you installed manually, activate the 'invokeai' environment
@@ -113,7 +125,7 @@ def user_wants_to_download_weights()->str:
     print('''You can download and configure the weights files manually or let this
 script do it for you. Manual installation is described at:
 
-https://github.com/invoke-ai/InvokeAI/blob/main/docs/installation/INSTALLING_MODELS.md
+https://invoke-ai.github.io/InvokeAI/installation/020_INSTALL_MANUAL/
 
 You may download the recommended models (about 10GB total), select a customized set, or
 completely skip this step.
@@ -149,14 +161,15 @@ will be given the option to view and change your selections.
 '''
         )
             for ds in Datasets.keys():
-                recommended = '(recommended)' if Datasets[ds]['recommended'] else ''
-                print(f'[{counter}] {ds}:\n    {Datasets[ds]["description"]} {recommended}')
-                if yes_or_no('    Download?',default_yes=Datasets[ds]['recommended']):
+                recommended = Datasets[ds].get('recommended',False)
+                r_str = '(recommended)' if recommended else ''
+                print(f'[{counter}] {ds}:\n    {Datasets[ds]["description"]} {r_str}')
+                if yes_or_no('    Download?',default_yes=recommended):
                     datasets[ds]=counter
                     counter += 1
         else:
             for ds in Datasets.keys():
-                if Datasets[ds]['recommended']:
+                if Datasets[ds].get('recommended',False):
                     datasets[ds]=counter
                     counter += 1
 
@@ -180,7 +193,15 @@ will be given the option to view and change your selections.
 def recommended_datasets()->dict:
     datasets = dict()
     for ds in Datasets.keys():
-        if Datasets[ds]['recommended']:
+        if Datasets[ds].get('recommended',False):
+            datasets[ds]=True
+    return datasets
+
+#---------------------------------------------
+def default_dataset()->dict:
+    datasets = dict()
+    for ds in Datasets.keys():
+        if Datasets[ds].get('default',False):
             datasets[ds]=True
     return datasets
 
@@ -191,61 +212,115 @@ def all_datasets()->dict:
         datasets[ds]=True
     return datasets
 
+#---------------------------------------------
+def HfLogin(access_token) -> str:
+    """
+    Helper for logging in to Huggingface
+    The stdout capture is needed to hide the irrelevant "git credential helper" warning
+    """
+
+    capture = io.StringIO()
+    sys.stdout = capture
+    try:
+        hf_hub_login(token = access_token, add_to_git_credential=False)
+        sys.stdout = sys.__stdout__
+    except Exception as exc:
+        sys.stdout = sys.__stdout__
+        print(exc)
+        raise exc
+
 #-------------------------------Authenticate against Hugging Face
-def authenticate():
+def authenticate(yes_to_all=False):
+    print('** LICENSE AGREEMENT FOR WEIGHT FILES **')
+    print("=" * shutil.get_terminal_size()[0])
     print('''
-To download the Stable Diffusion weight files from the official Hugging Face
-repository, you need to read and accept the CreativeML Responsible AI license.
+By downloading the Stable Diffusion weight files from the official Hugging Face
+repository, you agree to have read and accepted the CreativeML Responsible AI License.
+The license terms are located here:
 
-This involves a few easy steps.
+   https://huggingface.co/spaces/CompVis/stable-diffusion-license
 
-1. If you have not already done so, create an account on Hugging Face's web site
-   using the "Sign Up" button:
+''')
+    print("=" * shutil.get_terminal_size()[0])
 
-   https://huggingface.co/join
-
-   You will need to verify your email address as part of the HuggingFace
-   registration process.
-
-2. Log into your Hugging Face account:
-
-    https://huggingface.co/login
-
-3. Accept the license terms located here:
-
-   https://huggingface.co/runwayml/stable-diffusion-v1-5
-
-   and here:
-
-   https://huggingface.co/runwayml/stable-diffusion-inpainting
-
-    (Yes, you have to accept two slightly different license agreements)
-'''
-    )
-    input('Press <enter> when you are ready to continue:')
-    print('(Fetching Hugging Face token from cache...',end='')
-    access_token = HfFolder.get_token()
-    if access_token is not None:
-        print('found')
+    if not yes_to_all:
+        accepted = False
+        while not accepted:
+            accepted = yes_or_no('Accept the above License terms?')
+            if not accepted:
+                print('Please accept the License or Ctrl+C to exit.')
+            else:
+                print('Thank you!')
     else:
-        print('not found')
-        print('''
-4. Thank you! The last step is to enter your HuggingFace access token so that
-   this script is authorized to initiate the download. Go to the access tokens
-   page of your Hugging Face account and create a token by clicking the
-   "New token" button:
+        print("The program was started with a '--yes' flag, which indicates user's acceptance of the above License terms.")
 
-   https://huggingface.co/settings/tokens
+    # Authenticate to Huggingface using environment variables.
+    # If successful, authentication will persist for either interactive or non-interactive use.
+    # Default env var expected by HuggingFace is HUGGING_FACE_HUB_TOKEN.
+    print("=" * shutil.get_terminal_size()[0])
+    print('Authenticating to Huggingface')
+    hf_envvars = [ "HUGGING_FACE_HUB_TOKEN", "HUGGINGFACE_TOKEN" ]
+    token_found = False
+    if not (access_token := HfFolder.get_token()):
+        print(f"Huggingface token not found in cache.")
 
-   (You can enter anything you like in the token creation field marked "Name".
-   "Role" should be "read").
+        for ev in hf_envvars:
+            if (access_token := os.getenv(ev)):
+                print(f"Token was found in the {ev} environment variable.... Logging in.")
+                try:
+                    HfLogin(access_token)
+                    continue
+                except ValueError:
+                    print(f"Login failed due to invalid token found in {ev}")
+            else:
+                print(f"Token was not found in the environment variable {ev}.")
+    else:
+        print(f"Huggingface token found in cache.")
+        try:
+            HfLogin(access_token)
+            token_found = True
+        except ValueError:
+            print(f"Login failed due to invalid token found in cache")
 
-   Now copy the token to your clipboard and paste it at the prompt. Windows
-   users can paste with right-click or Ctrl-Shift-V.
-   Token: '''
-        )
-        access_token = getpass_asterisk.getpass_asterisk()
-        HfFolder.save_token(access_token)
+    if not (yes_to_all or token_found):
+        print(''' You may optionally enter your Huggingface token now. InvokeAI
+*will* work without it but you will not be able to automatically
+download some of the Hugging Face style concepts.  See
+https://invoke-ai.github.io/InvokeAI/features/CONCEPTS/#using-a-hugging-face-concept
+for more information.
+
+Visit https://huggingface.co/settings/tokens to generate a token. (Sign up for an account if needed).
+
+Paste the token below using Ctrl-V on macOS/Linux, or Ctrl-Shift-V or right-click on Windows. 
+Alternatively press 'Enter' to skip this step and continue.
+You may re-run the configuration script again in the future if you do not wish to set the token right now.
+        ''')
+        again = True
+        while again:
+            try:
+                access_token = getpass_asterisk.getpass_asterisk(prompt="HF Token ⮞ ")
+                HfLogin(access_token)
+                access_token = HfFolder.get_token()
+                again = False
+            except ValueError:
+                again = yes_or_no('Failed to log in to Huggingface. Would you like to try again?')
+                if not again:
+                    print('\nRe-run the configuration script whenever you wish to set the token.')
+                    print('...Continuing...')
+            except EOFError:
+                # this happens if the user pressed Enter on the prompt without any input; assume this means they don't want to input a token
+                # safety net needed against accidental "Enter"?
+                print("None provided - continuing")
+                again = False
+
+    elif access_token is None:
+        print()
+        print("HuggingFace login did not succeed. Some functionality may be limited; see https://invoke-ai.github.io/InvokeAI/features/CONCEPTS/#using-a-hugging-face-concept for more information")
+        print()
+        print(f"Re-run the configuration script without '--yes' to set the HuggingFace token interactively, or use one of the environment variables: {', '.join(hf_envvars)}")
+
+    print("=" * shutil.get_terminal_size()[0])
+
     return access_token
 
 #---------------------------------------------
@@ -263,37 +338,61 @@ def migrate_models_ckpt():
         os.replace(os.path.join(model_path,'model.ckpt'),os.path.join(model_path,new_name))
 
 #---------------------------------------------
-def download_weight_datasets(models:dict, access_token:str):
+def download_weight_datasets(models:dict, access_token:str, precision:str='float32'):
     migrate_models_ckpt()
     successful = dict()
     for mod in models.keys():
-        repo_id = Datasets[mod]['repo_id']
-        filename = Datasets[mod]['file']
-        dest = os.path.join(Globals.root,Model_dir,Weights_dir)
-        success = hf_download_with_resume(
-            repo_id=repo_id,
-            model_dir=dest,
-            model_name=filename,
-            access_token=access_token
-        )
-        if success:
-            successful[mod] = True
-    if len(successful) < len(models):
-        print(f'\n\n** There were errors downloading one or more files. **')
-        print('Please double-check your license agreements, and your access token.')
-        HfFolder.delete_token()
-        print('Press any key to try again. Type ^C to quit.\n')
-        input()
-        return None
-
-    HfFolder.save_token(access_token)
-    keys = ', '.join(successful.keys())
-    print(f'Successfully installed {keys}')
+        print(f'{mod}...',file=sys.stderr,end='')
+        successful[mod] = _download_repo_or_file(Datasets[mod], access_token, precision=precision)
     return successful
 
+def _download_repo_or_file(mconfig:DictConfig, access_token:str, precision:str='float32')->Path:
+    path = None
+    if mconfig['format'] == 'ckpt':
+        path = _download_ckpt_weights(mconfig, access_token)
+    else:
+        path = _download_diffusion_weights(mconfig, access_token, precision=precision)
+        if 'vae' in mconfig and 'repo_id' in mconfig['vae']:
+            _download_diffusion_weights(mconfig['vae'], access_token, precision=precision)
+    return path
+
+def _download_ckpt_weights(mconfig:DictConfig, access_token:str)->Path:
+    repo_id = mconfig['repo_id']
+    filename = mconfig['file']
+    cache_dir = os.path.join(Globals.root, Model_dir, Weights_dir)
+    return hf_download_with_resume(
+        repo_id=repo_id,
+        model_dir=cache_dir,
+        model_name=filename,
+        access_token=access_token
+    )
+
+def _download_diffusion_weights(mconfig:DictConfig, access_token:str, precision:str='float32'):
+    repo_id = mconfig['repo_id']
+    model_class = StableDiffusionGeneratorPipeline if mconfig.get('format',None)=='diffusers' else AutoencoderKL
+    extra_arg_list = [{'revision':'fp16'},{}] if precision=='float16' else [{}]
+    path = None
+    for extra_args in extra_arg_list:
+        try:
+            path = download_from_hf(
+                model_class,
+                repo_id,
+                cache_subdir='diffusers',
+                safety_checker=None,
+                **extra_args,
+            )
+        except OSError as e:
+            if str(e).startswith('fp16 is not a valid'):
+                print(f'Could not fetch half-precision version of model {repo_id}; fetching full-precision instead')
+            else:
+                print(f'An unexpected error occurred while downloading the model: {e})')
+        if path:
+            break
+    return path
+
 #---------------------------------------------
-def hf_download_with_resume(repo_id:str, model_dir:str, model_name:str, access_token:str=None)->bool:
-    model_dest = os.path.join(model_dir, model_name)
+def hf_download_with_resume(repo_id:str, model_dir:str, model_name:str, access_token:str=None)->Path:
+    model_dest = Path(os.path.join(model_dir, model_name))
     os.makedirs(model_dir, exist_ok=True)
 
     url = hf_hub_url(repo_id, model_name)
@@ -312,7 +411,7 @@ def hf_download_with_resume(repo_id:str, model_dir:str, model_name:str, access_t
 
     if resp.status_code==416:  # "range not satisfiable", which means nothing to return
         print(f'* {model_name}: complete file found. Skipping.')
-        return True
+        return model_dest
     elif resp.status_code != 200:
         print(f'** An error occurred during downloading {model_name}: {resp.reason}')
     elif exist_size > 0:
@@ -323,7 +422,7 @@ def hf_download_with_resume(repo_id:str, model_dir:str, model_name:str, access_t
     try:
         if total < 2000:
             print(f'*** ERROR DOWNLOADING {model_name}: {resp.text}')
-            return False
+            return None
 
         with open(model_dest, open_mode) as file, tqdm(
                 desc=model_name,
@@ -338,8 +437,22 @@ def hf_download_with_resume(repo_id:str, model_dir:str, model_name:str, access_t
                 bar.update(size)
     except Exception as e:
         print(f'An error occurred while downloading {model_name}: {str(e)}')
-        return False
-    return True
+        return None
+    return model_dest
+
+# -----------------------------------------------------------------------------------
+#---------------------------------------------
+def is_huggingface_authenticated():
+    # huggingface_hub 0.10 API isn't great for this, it could be OSError, ValueError,
+    # maybe other things, not all end-user-friendly.
+    # noinspection PyBroadException
+    try:
+        response = hf_whoami()
+        if response.get('id') is not None:
+            return True
+    except Exception:
+        pass
+    return False
 
 #---------------------------------------------
 def download_with_progress_bar(model_url:str, model_dest:str, label:str='the'):
@@ -356,7 +469,6 @@ def download_with_progress_bar(model_url:str, model_dest:str, label:str='the'):
         print('...download failed')
         print(f'Error downloading {label} model')
         print(traceback.format_exc())
-
 
 #---------------------------------------------
 def update_config_file(successfully_downloaded:dict,opt:dict):
@@ -394,29 +506,27 @@ def new_config_file_contents(successfully_downloaded:dict, config_file:str)->str
     default_selected = False
 
     for model in successfully_downloaded:
-        a = Datasets[model]['config'].split('/')
-        if a[0] != 'VAE':
-            continue
-        vae_target = a[1] if len(a)>1 else 'default'
-        vaes[vae_target] = Datasets[model]['file']
-
-    for model in successfully_downloaded:
-        if Datasets[model]['config'].startswith('VAE'): # skip VAE entries
-            continue
         stanza = conf[model] if model in conf else { }
-
-        stanza['description'] = Datasets[model]['description']
-        stanza['weights'] = os.path.join(Model_dir,Weights_dir,Datasets[model]['file'])
-        stanza['config'] = os.path.normpath(os.path.join(SD_Configs, Datasets[model]['config']))
-        stanza['width'] = Datasets[model]['width']
-        stanza['height'] = Datasets[model]['height']
+        mod = Datasets[model]
+        stanza['description'] = mod['description']
+        stanza['repo_id'] = mod['repo_id']
+        stanza['format'] = mod['format']
+        # diffusers don't need width and height (probably .ckpt doesn't either)
+        # so we no longer require these in INITIAL_MODELS.yaml
+        if 'width' in mod:
+            stanza['width'] = mod['width']
+        if 'height' in mod:
+            stanza['height'] = mod['height']
+        if 'file' in mod:
+            stanza['weights'] = os.path.relpath(successfully_downloaded[model], start=Globals.root)
+            stanza['config'] = os.path.normpath(os.path.join(SD_Configs,mod['config']))
+        if 'vae' in mod:
+            if 'file' in mod['vae']:
+                stanza['vae'] = os.path.normpath(os.path.join(Model_dir, Weights_dir,mod['vae']['file']))
+            else:
+                stanza['vae'] = mod['vae']
         stanza.pop('default',None)  # this will be set later
-        if vaes:
-            for target in vaes:
-                if re.search(target, model, flags=re.IGNORECASE):
-                    stanza['vae'] = os.path.normpath(os.path.join(Model_dir,Weights_dir,vaes[target]))
-                else:
-                    stanza['vae'] = os.path.normpath(os.path.join(Model_dir,Weights_dir,vaes['default']))
+
         # BUG - the first stanza is always the default. User should select.
         if not default_selected:
             stanza['default'] = True
@@ -430,17 +540,20 @@ def download_bert():
     print('Installing bert tokenizer (ignore deprecation errors)...', end='',file=sys.stderr)
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', category=DeprecationWarning)
-        from transformers import BertTokenizerFast, AutoFeatureExtractor
+        from transformers import BertTokenizerFast
         download_from_hf(BertTokenizerFast,'bert-base-uncased')
         print('...success',file=sys.stderr)
 
 #---------------------------------------------
-def download_from_hf(model_class:object, model_name:str):
+def download_from_hf(model_class:object, model_name:str, cache_subdir:Path=Path('hub'), **kwargs):
     print('',file=sys.stderr)  # to prevent tqdm from overwriting
-    return model_class.from_pretrained(model_name,
-                                       cache_dir=os.path.join(Globals.root,Model_dir,model_name),
-                                       resume_download=True
+    path = global_cache_dir(cache_subdir)
+    model = model_class.from_pretrained(model_name,
+                                        cache_dir=path,
+                                        resume_download=True,
+                                        **kwargs,
     )
+    return path if model else None
 
 #---------------------------------------------
 def download_clip():
@@ -537,25 +650,16 @@ def download_safety_checker():
 
 #-------------------------------------
 def download_weights(opt:dict) -> Union[str, None]:
-    # Authenticate to Huggingface using environment variables.
-    # If successful, authentication will persist for either interactive or non-interactive use.
-    # Default env var expected by HuggingFace is HUGGING_FACE_HUB_TOKEN.
-    if not (access_token := HfFolder.get_token()):
-        # If unable to find an existing token or expected environment, try the non-canonical environment variable (widely used in the community and supported as per docs)
-        if (access_token := os.getenv("HUGGINGFACE_TOKEN")):
-            # set the environment variable here instead of simply calling huggingface_hub.login(token), to maintain consistent behaviour.
-            # when calling the .login() method, the token is cached in the user's home directory. When the env var is used, the token is NOT cached.
-            os.environ['HUGGING_FACE_HUB_TOKEN'] = access_token
+
+    precision = 'float32' if opt.full_precision else choose_precision(torch.device(choose_torch_device()))
 
     if opt.yes_to_all:
-        models = recommended_datasets()
-        if len(models)>0 and access_token is not None:
-            successfully_downloaded = download_weight_datasets(models, access_token)
+        models = default_dataset() if opt.default_only else recommended_datasets()
+        access_token = authenticate(opt.yes_to_all)
+        if len(models)>0:
+            successfully_downloaded = download_weight_datasets(models, access_token, precision=precision)
             update_config_file(successfully_downloaded,opt)
             return
-        else:
-            print('** Cannot download models because no Hugging Face access token could be found. Please re-run without --yes')
-            return "could not download model weights from Huggingface due to missing or invalid access token"
 
     else:
         choice = user_wants_to_download_weights()
@@ -571,11 +675,12 @@ def download_weights(opt:dict) -> Union[str, None]:
     else:  # 'skip'
         return
 
-    print('** LICENSE AGREEMENT FOR WEIGHT FILES **')
-    # We are either already authenticated, or will be asked to provide the token interactively
     access_token = authenticate()
+    HfFolder.save_token(access_token)
+
     print('\n** DOWNLOADING WEIGHTS **')
-    successfully_downloaded = download_weight_datasets(models, access_token)
+    successfully_downloaded = download_weight_datasets(models, access_token, precision=precision)
+
     update_config_file(successfully_downloaded,opt)
     if len(successfully_downloaded) < len(models):
         return "some of the model weights downloads were not successful"
@@ -695,18 +800,32 @@ def main():
                         dest='interactive',
                         action=argparse.BooleanOptionalAction,
                         default=True,
-                        help='run in interactive mode (default)')
+                        help='run in interactive mode (default) - DEPRECATED')
+    parser.add_argument('--skip-sd-weights',
+                        dest='skip_sd_weights',
+                        action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help='skip downloading the large Stable Diffusion weight files')
+    parser.add_argument('--full-precision',
+                        dest='full_precision',
+                        action=argparse.BooleanOptionalAction,
+                        type=bool,
+                        default=False,
+                        help='use 32-bit weights instead of faster 16-bit weights')
     parser.add_argument('--yes','-y',
                         dest='yes_to_all',
                         action='store_true',
                         help='answer "yes" to all prompts')
+    parser.add_argument('--default_only',
+                        action='store_true',
+                        help='when --yes specified, only install the default model')
     parser.add_argument('--config_file',
                         '-c',
                         dest='config_file',
                         type=str,
                         default='./configs/models.yaml',
                         help='path to configuration file to create')
-    parser.add_argument('--root',
+    parser.add_argument('--root_dir',
                         dest='root',
                         type=str,
                         default=None,
@@ -728,7 +847,12 @@ def main():
         # Optimistically try to download all required assets. If any errors occur, add them and proceed anyway.
         errors=set()
 
-        if opt.interactive:
+        if not opt.interactive:
+            print("WARNING: The --(no)-interactive argument is deprecated and will be removed. Use --skip-sd-weights.")
+            opt.skip_sd_weights=True
+        if opt.skip_sd_weights:
+            print('** SKIPPING DIFFUSION WEIGHTS DOWNLOAD PER USER REQUEST **')
+        else:
             print('** DOWNLOADING DIFFUSION WEIGHTS **')
             errors.add(download_weights(opt))
         print('\n** DOWNLOADING SUPPORT MODELS **')

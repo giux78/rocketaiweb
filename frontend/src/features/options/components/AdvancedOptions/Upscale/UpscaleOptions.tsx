@@ -1,5 +1,5 @@
 import { RootState } from 'app/store';
-import { useAppDispatch, useAppSelector } from 'app/store';
+import { useAppDispatch, useAppSelector } from 'app/storeHooks';
 
 import {
   setUpscalingLevel,
@@ -15,6 +15,7 @@ import { SystemState } from 'features/system/store/systemSlice';
 import { ChangeEvent } from 'react';
 import IAINumberInput from 'common/components/IAINumberInput';
 import IAISelect from 'common/components/IAISelect';
+import { useTranslation } from 'react-i18next';
 
 const optionsSelector = createSelector(
   (state: RootState) => state.options,
@@ -54,23 +55,25 @@ const UpscaleOptions = () => {
 
   const { isESRGANAvailable } = useAppSelector(systemSelector);
 
+  const { t } = useTranslation();
+
   const handleChangeLevel = (e: ChangeEvent<HTMLSelectElement>) =>
     dispatch(setUpscalingLevel(Number(e.target.value) as UpscalingLevel));
 
   const handleChangeStrength = (v: number) => dispatch(setUpscalingStrength(v));
 
   return (
-    <div className='upscale-options'>
+    <div className="upscale-options">
       <IAISelect
         isDisabled={!isESRGANAvailable}
-        label="Scale"
+        label={t('options:scale')}
         value={upscalingLevel}
         onChange={handleChangeLevel}
         validValues={UPSCALING_LEVELS}
       />
       <IAINumberInput
         isDisabled={!isESRGANAvailable}
-        label="Strength"
+        label={t('options:strength')}
         step={0.05}
         min={0}
         max={1}

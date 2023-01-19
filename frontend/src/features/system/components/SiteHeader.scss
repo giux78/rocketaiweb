@@ -13,14 +13,19 @@
     width: 32px;
     height: 32px;
   }
-
-  h1 {
-    font-size: 1.4rem;
-  }
 }
 
 .site-header-right-side {
   display: flex;
   align-items: center;
   column-gap: 0.5rem;
+
+  .lang-select-btn {
+    &[data-selected='true'] {
+      background-color: var(--accent-color);
+      &:hover {
+        background-color: var(--accent-color);
+      }
+    }
+  }
 }

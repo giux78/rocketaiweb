@@ -1,9 +1,11 @@
-import { RootState, useAppDispatch, useAppSelector } from 'app/store';
+import { RootState } from 'app/store';
+import { useAppDispatch, useAppSelector } from 'app/storeHooks';
 import IAISlider from 'common/components/IAISlider';
 import { isStagingSelector } from 'features/canvas/store/canvasSelectors';
 import { setBrushSize } from 'features/canvas/store/canvasSlice';
 import React from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { useTranslation } from 'react-i18next';
 
 export default function UnifiedCanvasBrushSize() {
   const dispatch = useAppDispatch();
@@ -11,6 +13,8 @@ export default function UnifiedCanvasBrushSize() {
   const brushSize = useAppSelector(
     (state: RootState) => state.canvas.brushSize
   );
+
+  const { t } = useTranslation();
 
   const isStaging = useAppSelector(isStagingSelector);
 
@@ -40,13 +44,14 @@ export default function UnifiedCanvasBrushSize() {
 
   return (
     <IAISlider
-      label="Size"
+      label={t('unifiedcanvas:brushSize')}
       value={brushSize}
       withInput
       onChange={(newSize) => dispatch(setBrushSize(newSize))}
       sliderNumberInputProps={{ max: 500 }}
       inputReadOnly={false}
       width={'100px'}
+      isCompact
     />
   );
 }

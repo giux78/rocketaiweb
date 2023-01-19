@@ -1,7 +1,9 @@
-import { RootState, useAppDispatch, useAppSelector } from 'app/store';
+import { RootState } from 'app/store';
+import { useAppDispatch, useAppSelector } from 'app/storeHooks';
 import IAICheckbox from 'common/components/IAICheckbox';
 import { setShouldShowGrid } from 'features/canvas/store/canvasSlice';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 export default function UnifiedCanvasShowGrid() {
   const shouldShowGrid = useAppSelector(
@@ -9,10 +11,11 @@ export default function UnifiedCanvasShowGrid() {
   );
 
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
 
   return (
     <IAICheckbox
-      label="Show Grid"
+      label={t('unifiedcanvas:showGrid')}
       isChecked={shouldShowGrid}
       onChange={(e) => dispatch(setShouldShowGrid(e.target.checked))}
     />
