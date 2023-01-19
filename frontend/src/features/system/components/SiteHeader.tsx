@@ -116,7 +116,7 @@ const SiteHeader = () => {
           fontSize={20}
           size={'sm'}
           icon={
-            <Link isExternal href="https://discord.gg/ZmtBAhwWhy">
+            <Link isExternal href="https://discord.gg/Sr7YvcSM">
               <FaDiscord />
             </Link>
           }

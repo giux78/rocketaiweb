@@ -331,7 +331,7 @@ incompatibilities.
 
 We suggest that you search
 [Issues](https://github.com/invoke-ai/InvokeAI/issues) or the "bugs-and-support"
-channel of the [InvokeAI Discord](https://discord.gg/ZmtBAhwWhy).
+channel of the [InvokeAI Discord](https://discord.gg/Sr7YvcSM).
 
 You may also try to install the broken packages manually using PIP. To do this,
 activate the `invokeai` environment, and run `pip install` with the name and
@@ -383,7 +383,7 @@ If the CLI or web site had been working ok, but something unexpected happens
 later on during the session, you've encountered a code bug that is probably
 unrelated to an install issue. Please search
 [Issues](https://github.com/invoke-ai/InvokeAI/issues), file a bug report, or
-ask for help on [Discord](https://discord.gg/ZmtBAhwWhy)
+ask for help on [Discord](https://discord.gg/Sr7YvcSM)
 
 #### My renders are running very slowly
 

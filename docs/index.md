@@ -37,7 +37,7 @@ title: Home
 [ci checks on main link]:
   https://github.com/invoke-ai/InvokeAI/actions/workflows/test-invoke-conda.yml
 [discord badge]: https://flat.badgen.net/discord/members/ZmtBAhwWhy?icon=discord
-[discord link]: https://discord.gg/ZmtBAhwWhy
+[discord link]: https://discord.gg/Sr7YvcSM
 [github forks badge]:
   https://flat.badgen.net/github/forks/invoke-ai/InvokeAI?icon=github
 [github forks link]:
@@ -69,7 +69,7 @@ image-to-image generator. It provides a streamlined process with various new
 features and options to aid the image generation process. It runs on Windows,
 Mac and Linux machines, and runs on GPU cards with as little as 4 GB or RAM.
 
-**Quick links**: [<a href="https://discord.gg/ZmtBAhwWhy">Discord Server</a>]
+**Quick links**: [<a href="https://discord.gg/Sr7YvcSM">Discord Server</a>]
 [<a href="https://github.com/invoke-ai/InvokeAI/">Code and Downloads</a>] [<a
 href="https://github.com/invoke-ai/InvokeAI/issues">Bug Reports</a>] [<a
 href="https://github.com/invoke-ai/InvokeAI/discussions">Discussion, Ideas &

@@ -271,7 +271,7 @@ Note the dot (.) after `--root`. It is part of the command.
 
 _If none of these maneuvers fixes the problem_ then please report the problem to
 the [InvokeAI Issues](https://github.com/invoke-ai/InvokeAI/issues) section, or
-visit our [Discord Server](https://discord.gg/ZmtBAhwWhy) for interactive
+visit our [Discord Server](https://discord.gg/Sr7YvcSM) for interactive
 assistance.
 
 ### other problems
@@ -280,7 +280,7 @@ If you run into problems during or after installation, the InvokeAI team is
 available to help you. Either create an
 [Issue](https://github.com/invoke-ai/InvokeAI/issues) at our GitHub site, or
 make a request for help on the "bugs-and-support" channel of our
-[Discord server](https://discord.gg/ZmtBAhwWhy). We are a 100% volunteer
+[Discord server](https://discord.gg/Sr7YvcSM). We are a 100% volunteer
 organization, but typically somebody will be available to help you within 24
 hours, and often much sooner.
 
